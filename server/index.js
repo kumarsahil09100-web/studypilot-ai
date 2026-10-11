@@ -6,12 +6,16 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { PDFParse } from "pdf-parse";
+import { fileURLToPath } from "node:url";
 
 dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
-const uploadDir = path.resolve("uploads");
-const dataDir = path.resolve("data");
+const uploadDir = path.resolve(__dirname, "uploads");
+const dataDir = path.resolve(__dirname, "data");
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(dataDir, { recursive: true });
 
@@ -499,6 +503,19 @@ app.get("/api/progress", (_req, res) => {
     recentAttempts: quizAttempts.slice(0, 5).map(({ id, date, score, correct, total, adaptive }) => ({ id, date, score, correct, total, adaptive }))
   });
 });
+
+const clientDist = path.resolve(__dirname, "..", "client", "dist");
+
+if (fs.existsSync(clientDist)) {
+  console.log(`Serving frontend from: ${clientDist}`);
+  app.use(express.static(clientDist));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+} else {
+  console.warn(`Client dist folder not found at: ${clientDist}`);
+}
 
 app.use((err, _req, res, _next) => {
   console.error(err);
